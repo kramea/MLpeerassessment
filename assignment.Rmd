@@ -1,0 +1,71 @@
+---
+title: "Practical Machine Learning Assignment"
+output: html_document
+---
+
+### Executive Summary
+
+This assignment takes the wearable computing data from the *Weight Lifting Exercise* dataset, and using machine learning algorithms, it predicts the manner in which the user did the exercise.
+
+```{r echo=FALSE}
+setwd("~/Documents/Courses/Coursera/machine_learning/Assignment")
+```
+
+### Getting and cleaning data
+
+First, the training and testing data are read into the file from the given links. From the datasets, we could observe that it contrains "NA", "#DIV/0", and empty spaces for missing data. So, these are specified along with the 'read' input command.
+
+```{r}
+training <- read.csv('pml-training.csv', na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv('pml-testing.csv', na.strings=c("NA","#DIV/0!",""))
+```
+
+It is observed that the training dataset consists of a lot of missing variables. In order to avoid them being present in the model, a guideline is developed to clean the dataset. If the number of missing values in a column is greater than 10,000 (among 19,622 rows of training dataset), then that particular column is removed from the dataset.
+
+```{r}
+library(fields)
+library(caret)
+library(randomForest)
+library(rpart)
+```
+
+```{r}
+temp <- t(stats(training))
+missingcol<-apply(temp, 1, function(currow){all(is.na(currow)) || (currow["missing values"] > 10000)})
+trainingclean <- training[!missingcol]
+```
+
+```{r echo=FALSE}
+trainingclean <- cbind(trainingclean, training[,160])
+b <- colnames(trainingclean)
+colnames(trainingclean) <- c(b[1:56], "classe")
+```
+
+### Machine Learning and Prediction
+
+A set is seed first for consistency. First, the results are predicted using the 'rpart' method.
+
+```{r}
+set.seed(123)
+trainingclean <- trainingclean[c(-1)]
+model1 <- train(classe~., method="rpart", data=trainingclean)
+predictions <- predict(model1, newdata=trainingclean)
+confusionMatrix(predictions, training$classe)
+```
+
+The accuracy of using the 'rpart' method is very low, about **49.56%**. That means, about 50% of the time, the prediction outcome is wrong if we used this approach. Hence this method is disgarded.
+
+Next, 'Random Forest' algorithm is used on the training set to predict the outcome.
+
+```{r}
+model2 <- randomForest(classe~., data=trainingclean)
+print(model2)
+
+predictions <- predict(model2, newdata=trainingclean)
+confusionMatrix(predictions, training$classe)
+```
+
+In this case, the accuracy of using the method in the sample is **100%**. And the OOB (out-of-bag or out-of-sample) error is also very low (about **0.06%**), that means, even if this model is used to predict a different dataset, the outcome will be **94%** accurate.
+
+Hence the second model is considered to be a better fit to predict the outcome of the wearable computing data. This model is used on the test data and the outcomes are entered in the submission assignment.
+
